@@ -1,0 +1,1461 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Investment Crime Lab</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!-- Firebase (standalone mode only — harmless if FIREBASE_CONFIG below is left unfilled) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --canvas:#FBFAF7; --canvas-2:#F4F1EA;
+  --ink:#241F1C; --ink-soft:#5B5450; --ink-faint:#8A827C;
+  --surface:#FFFFFF; --border:rgba(36,31,28,0.13); --border-strong:rgba(36,31,28,0.24);
+  --shadow:0 1px 2px rgba(36,31,28,0.06), 0 6px 20px rgba(36,31,28,0.05);
+
+  --growth:#3B6FA0; --growth-fill:#DCEBF5; --growth-ink:#1F4A6B;
+  --reserve:#4C7A5C; --reserve-fill:#E1EEE4; --reserve-ink:#2F4F3A;
+  --facility:#7A5C9E; --facility-fill:#ECE4F2; --facility-ink:#4F3A6B;
+
+  --buy:#3F8F45; --buy-fill:#E3F3E3; --buy-ink:#255C2A;
+  --watch:#C9932E; --watch-fill:#FBF1DC; --watch-ink:#7A5A18;
+  --reject:#B94A3D; --reject-fill:#F7E3E0; --reject-ink:#7A2A20;
+
+  --cerulean:#3B7EA8; --plum:#8B5A96; --rust:#8B3A3A; --teal:#4A9B9E; --taupe:#A8967D; --ledger:#3F4E8C; --ledger-fill:#E3E6F2; --ledger-ink:#2A3560; --ok:#3F8F45; --bad:#B94A3D;
+
+  --font-hand:'Caveat',cursive; --font-body:'Inter',system-ui,sans-serif; --font-mono:'IBM Plex Mono',monospace;
+  --radius:10px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --canvas:#1B1918; --canvas-2:#221F1D;
+    --ink:#EEE9E3; --ink-soft:#B9B2AC; --ink-faint:#867E78;
+    --surface:#242220; --border:rgba(238,233,227,0.14); --border-strong:rgba(238,233,227,0.26);
+    --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.28);
+    --growth:#6FA6D6; --growth-fill:#213244; --growth-ink:#BFE0F5;
+    --reserve:#7CC397; --reserve-fill:#1E2E24; --reserve-ink:#C7E6D2;
+    --facility:#B79BD6; --facility-fill:#2C2438; --facility-ink:#E4D6F2;
+    --buy:#6FC177; --buy-fill:#1E2E1F; --buy-ink:#B7E6BC;
+    --watch:#E3B458; --watch-fill:#332A18; --watch-ink:#F1DBA6;
+    --reject:#E0897C; --reject-fill:#3A211E; --reject-ink:#F2C1B8;
+    --ledger:#8C9AE0; --ledger-fill:#242A47; --ledger-ink:#C7CDF0;
+    --ok:#6FC177; --bad:#E0897C;
+  }
+}
+:root[data-theme="dark"]{
+  --canvas:#1B1918; --canvas-2:#221F1D;
+  --ink:#EEE9E3; --ink-soft:#B9B2AC; --ink-faint:#867E78;
+  --surface:#242220; --border:rgba(238,233,227,0.14); --border-strong:rgba(238,233,227,0.26);
+  --shadow:0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.28);
+  --growth:#6FA6D6; --growth-fill:#213244; --growth-ink:#BFE0F5;
+  --reserve:#7CC397; --reserve-fill:#1E2E24; --reserve-ink:#C7E6D2;
+  --facility:#B79BD6; --facility-fill:#2C2438; --facility-ink:#E4D6F2;
+  --buy:#6FC177; --buy-fill:#1E2E1F; --buy-ink:#B7E6BC;
+  --watch:#E3B458; --watch-fill:#332A18; --watch-ink:#F1DBA6;
+  --reject:#E0897C; --reject-fill:#3A211E; --reject-ink:#F2C1B8;
+  --ledger:#8C9AE0; --ledger-fill:#242A47; --ledger-ink:#C7CDF0;
+  --ok:#6FC177; --bad:#E0897C;
+}
+
+*{box-sizing:border-box;}
+body{background:var(--canvas); color:var(--ink); font-family:var(--font-body); margin:0; padding:0 16px; line-height:1.5;}
+h1,h2,h3{font-weight:600; margin:0;}
+p{margin:0;}
+button,input,select,textarea{font-family:inherit; color:inherit;}
+.wrap{max-width:960px; margin:0 auto; padding-bottom:64px;}
+
+/* ---- top nav ---- */
+.topnav{position:sticky; top:0; z-index:5; background:var(--canvas); padding:14px 0 10px; display:flex; align-items:center; gap:6px; flex-wrap:wrap; border-bottom:0.5px solid var(--border);}
+.topnav .brand{font-family:var(--font-hand); font-size:26px; font-weight:700; margin-right:10px; white-space:nowrap;}
+.navbtn{border:0.5px solid var(--border); background:var(--surface); color:var(--ink-soft); padding:6px 12px; border-radius:999px; font-size:13px; cursor:pointer; font-weight:500;}
+.navbtn:hover{border-color:var(--border-strong); color:var(--ink);}
+.navbtn.active{background:var(--ink); color:var(--canvas); border-color:var(--ink);}
+
+/* ---- brush header ---- */
+.brushzone{position:relative; padding:34px 8px 26px; margin:18px 0 8px; overflow:hidden;}
+.blob{position:absolute; opacity:0.30; mix-blend-mode:multiply;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .blob{mix-blend-mode:screen; opacity:0.24;} }
+:root[data-theme="dark"] .blob{mix-blend-mode:screen; opacity:0.24;}
+.brushzone h1{font-family:var(--font-hand); font-size:44px; font-weight:700; position:relative; z-index:1;}
+.brushzone .sub{position:relative; z-index:1; color:var(--ink-soft); font-size:14px; margin-top:2px; max-width:60ch;}
+.blob-a{border-radius:42% 58% 65% 35%/45% 40% 60% 55%; transform:rotate(-6deg);}
+.blob-b{border-radius:60% 40% 30% 70%/55% 65% 35% 45%; transform:rotate(4deg);}
+.blob-c{border-radius:35% 65% 55% 45%/60% 30% 70% 40%; transform:rotate(-3deg);}
+.blob-d{border-radius:55% 45% 40% 60%/35% 55% 45% 65%; transform:rotate(5deg);}
+.blob-faded{opacity:0.14; filter:saturate(0.5);}
+.blob-rough{outline:2px dashed currentColor; outline-offset:-3px; opacity:0.24;}
+
+/* ---- layout bits ---- */
+.grid{display:grid; gap:14px;}
+.grid-2{grid-template-columns:1fr 1fr;}
+.grid-3{grid-template-columns:repeat(3,1fr);}
+@media(max-width:720px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+.card{background:var(--surface); border:0.5px solid var(--border); border-radius:12px; padding:18px; box-shadow:var(--shadow);}
+.card h3{font-size:15px; margin-bottom:10px;}
+.section-title{font-size:13px; text-transform:none; color:var(--ink-faint); letter-spacing:.02em; margin:22px 0 2px; font-weight:600; position:relative; display:inline-block; padding-bottom:6px;}
+.section-title::after{content:"";position:absolute; left:-2px; bottom:0; width:calc(100% + 10px); height:6px; background:currentColor; opacity:0.18; border-radius:40% 60% 55% 45%/60% 40% 60% 40%; transform:rotate(-1deg);}
+.hr{border:none; height:5px; margin:18px 6px; background:var(--ink-faint); opacity:0.14; border-radius:50% 50% 45% 55%/70% 60% 40% 30%; transform:rotate(0.6deg);}
+
+/* ---- form ---- */
+label{display:block; font-size:13px; color:var(--ink-soft); margin-bottom:4px; font-weight:500;}
+.field{margin-bottom:14px;}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  width:100%; padding:8px 10px; border:0.5px solid var(--border-strong); border-radius:8px; background:var(--canvas-2); font-size:14px;
+}
+textarea{min-height:64px; resize:vertical; font-family:inherit;}
+.checkrow{display:flex; align-items:center; gap:8px; font-size:14px;}
+.checkrow input{width:auto;}
+.formgrid{display:grid; grid-template-columns:1fr 1fr; gap:0 14px;}
+@media(max-width:600px){.formgrid{grid-template-columns:1fr;}}
+.btn{border:0.5px solid var(--border-strong); background:var(--surface); padding:9px 16px; border-radius:8px; font-size:14px; font-weight:500; cursor:pointer;}
+.btn:hover{border-color:var(--ink);}
+.btn-primary{background:var(--ink); color:var(--canvas); border-color:var(--ink);}
+.btn-primary:disabled{opacity:0.4; cursor:not-allowed;}
+.btn-danger{border-color:var(--reject); color:var(--reject-ink); background:var(--reject-fill);}
+.err{color:var(--reject-ink); font-size:12px; margin-top:4px;}
+.hint{color:var(--ink-faint); font-size:12px; margin-top:3px;}
+
+/* ---- verdict badge / daub ---- */
+.daub{display:inline-flex; align-items:center; gap:8px; padding:6px 16px 8px; font-family:var(--font-hand); font-size:22px; font-weight:700; border-radius:60% 40% 55% 45%/50% 55% 45% 50%; position:relative;}
+.daub.buy{background:var(--buy-fill); color:var(--buy-ink); transform:rotate(-2deg);}
+.daub.watch{background:var(--watch-fill); color:var(--watch-ink); transform:rotate(1.5deg);}
+.daub.reject{background:var(--reject-fill); color:var(--reject-ink); transform:rotate(-1.5deg);}
+.daub svg{width:18px; height:18px; flex:none;}
+.pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:600; font-family:var(--font-body);}
+.pill.buy{background:var(--buy-fill); color:var(--buy-ink);}
+.pill.watch{background:var(--watch-fill); color:var(--watch-ink);}
+.pill.reject{background:var(--reject-fill); color:var(--reject-ink);}
+.pill.bucket-growth_engine{background:var(--growth-fill); color:var(--growth-ink);}
+.pill.bucket-operating_reserve{background:var(--reserve-fill); color:var(--reserve-ink);}
+.pill.bucket-facility_contribution{background:var(--facility-fill); color:var(--facility-ink);}
+.mono{font-family:var(--font-mono); font-size:12px; color:var(--ink-faint);}
+
+/* ---- score panel ---- */
+.scorepanel{position:sticky; top:64px;}
+.scorerow{display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:0.5px solid var(--border); font-size:13px;}
+.scorerow:last-child{border-bottom:none;}
+.scoreval{font-family:var(--font-mono); font-weight:500;}
+.scoreval.pos{color:var(--buy-ink);} .scoreval.zero{color:var(--ink-faint);} .scoreval.neg{color:var(--reject-ink);}
+.gate{display:flex; align-items:center; gap:6px; font-size:13px; padding:5px 0;}
+.gate .dot{width:8px; height:8px; border-radius:50%; flex:none;}
+.gate .dot.pass{background:var(--buy);} .gate .dot.fail{background:var(--reject);}
+
+/* ---- lists / tables ---- */
+.caserow{display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:0.5px solid var(--border); cursor:pointer;}
+.caserow:hover{background:var(--canvas-2);}
+.caserow .cname{font-weight:600; flex:1; min-width:0;}
+.caserow .cnum{font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); flex:none;}
+.filters{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;}
+.filters select{width:auto; padding:6px 10px; font-size:13px;}
+
+/* ---- empty state ---- */
+.empty{text-align:center; padding:48px 20px; color:var(--ink-soft);}
+.empty h3{font-family:var(--font-hand); font-size:28px; margin-bottom:6px; color:var(--ink);}
+
+/* ---- graveyard / cold case cards ---- */
+.gcard{position:relative; padding:16px 18px; border-radius:10px; border:0.5px solid var(--border); margin-bottom:12px; background:var(--surface);}
+.gcard .casenum{font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); letter-spacing:.03em;}
+.faded{opacity:0.55; filter:saturate(0.6);}
+
+/* ---- bucket bucket-svg ---- */
+.bucketcol h3{font-family:var(--font-hand); font-size:24px; margin-bottom:2px;}
+.bucketviz{display:flex; justify-content:center; margin:10px 0;}
+@media (prefers-reduced-motion: no-preference){
+  .wave{animation:wob 3.2s ease-in-out infinite;}
+}
+@keyframes wob{0%,100%{transform:translateY(0);}50%{transform:translateY(-2px);}}
+
+/* ---- overturned bucket spill ---- */
+.spill{display:inline-block; vertical-align:middle; margin-left:6px;}
+
+.small{font-size:12px; color:var(--ink-faint);}
+.tag{display:inline-block; background:var(--canvas-2); border:0.5px solid var(--border); padding:2px 8px; border-radius:999px; font-size:11px; margin:2px 4px 2px 0;}
+.two-col{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+@media(max-width:680px){.two-col{grid-template-columns:1fr;}}
+.for-col{border-left:3px solid var(--buy); padding-left:12px;}
+.against-col{border-left:3px solid var(--reject); padding-left:12px;}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+(function(){
+"use strict";
+
+var MARKET_MISTAKES = {
+  underreaction:"Underreaction — investors adjust too slowly to real improvement",
+  overreaction:"Overreaction — investors punish it more than evidence justifies",
+  outdated_narrative_anchoring:"Outdated narrative — investors are stuck on an old story",
+  extrapolation:"Extrapolation — investors assume a trend continues too far"
+};
+var FAILURE_REASONS = {
+  wrong_evidence:"Wrong evidence",
+  wrong_interpretation:"Wrong interpretation",
+  wrong_market_mistake_diagnosis:"Wrong diagnosis of the market mistake",
+  wrong_timing:"Wrong timing",
+  catalyst_failed:"Catalyst failed to happen",
+  risk_materialized:"Risk materialized",
+  market_was_actually_correct:"Market was actually correct",
+  unexpected_event:"Unexpected event"
+};
+var BUCKET_LABEL = {growth_engine:"Growth Engine", operating_reserve:"Operating Reserve", facility_contribution:"Facility Contribution"};
+
+var DEFAULT_SETTINGS = {
+  buyPointsThreshold:2,
+  expectationGapThreshold:0.02,
+  riskMaxDebtToEbitda:4.0,
+  riskMaxVolatility:0.50,
+  bucketMaxVolatility:{growth_engine:0.50, facility_contribution:0.35},
+  allowStocksInReserve:false,
+  maxSectorWeight:0.25,
+  maxSharedThesisHoldings:2,
+  graveyardRepeatThreshold:3,
+  targetHoldings:{growth_engine:6, operating_reserve:0, facility_contribution:4},
+  changeLog:[]
+};
+
+var DEFAULT_PLAN = {
+  contribution2027:300000, contributionYear1:2027,
+  contribution2028:150000, contributionYear2:2028,
+  reserveStartYear:2033, reserveEndYear:2042, annualPayment:50000,
+  rangeCheckpointYear:2031,
+  growthTargetReturn:0.175, growthReturnLow:0.135, growthReturnHigh:0.215,
+  growthReturnVolatility:0.18,
+  reserveSafeReturn:0.04,
+  reserveYieldCurve:null,
+  confidenceNote:"",
+  changeLog:[]
+};
+
+var EXAMPLE_CASES = [
+  {
+    id:"example-1", status:"open", company:"Example Corp (delete me — sample data)",
+    bucket:"growth_engine", marketMistake:"underreaction",
+    marketBelief:"Investors still price this as a low-margin, low-growth business.",
+    sector:"Technology", thesisTags:["margin re-rating"], heldPosition:false, currentWeight:0,
+    revenueGrowthRecent:0.16, revenueGrowthPrior:0.10, marginNow:0.41, margin3yrAgo:0.35,
+    belowOwn5yr:true, belowPeerMedian:true,
+    price:85, fcfPerShare:4.2, discountRate:0.09, ourEstimatedGrowth:0.13,
+    catalystSpecific:true, catalystDescription:"Earnings report with margin guidance", catalystDate:"",
+    debtToEbitda:1.8, historicalVolatility:0.30,
+    caseForNotes:"Margins expanded 6 points over 3 years while the multiple stayed below both its own history and peers.",
+    caseAgainstNotes:"Margin gain could be a temporary cost cut rather than structural.",
+    falsificationCondition:"If margins reverse next quarter, this thesis was wrong.",
+    createdAt:new Date().toISOString(), createdBy:null
+  }
+];
+
+var state = { view:"dashboard", cases:[], settings:DEFAULT_SETTINGS, plan:DEFAULT_PLAN, userId:null, profiles:{}, currentCaseId:null, editCaseId:null, dbReady:false };
+var db=null, userCap=null;
+var unsubCases=null, unsubSettings=null, unsubPlan=null;
+
+function esc(s){ return (s===undefined||s===null? "": String(s)).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+function fmtPct(x){ if(x===undefined||x===null||isNaN(x)) return "—"; return (x*100).toFixed(1)+"%"; }
+function num(v,d){ var n=parseFloat(v); return isNaN(n)? (d===undefined?0:d) : n; }
+function clamp01(x){ return Math.max(0,Math.min(1,x)); }
+
+// ---------- scoring engine (mirrors crime_lab_algorithm.py) ----------
+function impliedGrowth(price, fcf, r){
+  if(fcf<=0) return null;
+  return (price*r - fcf) / (price+fcf);
+}
+function fundamentalScore(c){
+  var accelerating = c.revenueGrowthRecent > c.revenueGrowthPrior;
+  var expanding = c.marginNow > c.margin3yrAgo;
+  if(accelerating && expanding) return {score:1, why:"revenue growth accelerated ("+fmtPct(c.revenueGrowthPrior)+" → "+fmtPct(c.revenueGrowthRecent)+") and margin expanded ("+fmtPct(c.margin3yrAgo)+" → "+fmtPct(c.marginNow)+")"};
+  if(!accelerating && !expanding) return {score:-1, why:"growth slowed and margin contracted"};
+  return {score:0, why:"mixed — only one of growth or margin improved"};
+}
+function valuationScore(c){
+  if(c.belowOwn5yr && c.belowPeerMedian) return {score:1, why:"cheap vs. both its own 5-year history and peer median"};
+  if(!c.belowOwn5yr && !c.belowPeerMedian) return {score:-1, why:"expensive vs. both its own history and peers"};
+  return {score:0, why:"cheap on one measure, not the other"};
+}
+function expectationGapScoreCalc(c, settings){
+  var g = impliedGrowth(c.price, c.fcfPerShare, c.discountRate);
+  if(g===null) return {score:0, impliedGrowth:null, why:"reverse DCF undefined (FCF/share ≤ 0) — scored neutral, needs qualitative review"};
+  var gap = c.ourEstimatedGrowth - g;
+  var t = settings.expectationGapThreshold;
+  if(gap > t) return {score:1, impliedGrowth:g, why:"price implies "+fmtPct(g)+" growth; your estimate ("+fmtPct(c.ourEstimatedGrowth)+") is meaningfully higher — market may be pricing in too little"};
+  if(gap < -t) return {score:-1, impliedGrowth:g, why:"price implies "+fmtPct(g)+" growth; your estimate ("+fmtPct(c.ourEstimatedGrowth)+") is meaningfully lower — possible overvaluation"};
+  return {score:0, impliedGrowth:g, why:"price implies "+fmtPct(g)+" growth, close to your own estimate of "+fmtPct(c.ourEstimatedGrowth)};
+}
+function riskGate(c, settings){
+  return c.debtToEbitda <= settings.riskMaxDebtToEbitda && c.historicalVolatility <= settings.riskMaxVolatility;
+}
+function clientFitGate(c, settings){
+  if(c.bucket==="operating_reserve") return !!settings.allowStocksInReserve;
+  var ceiling = settings.bucketMaxVolatility[c.bucket];
+  if(ceiling===undefined) return true;
+  return c.historicalVolatility <= ceiling;
+}
+function portfolioContext(allCases, excludeId){
+  var sectorWeights={}, thesisCounts={};
+  allCases.forEach(function(x){
+    if(x.id===excludeId) return;
+    if(!x.heldPosition) return;
+    var w = num(x.currentWeight,0);
+    var sec = x.sector||"";
+    sectorWeights[sec] = (sectorWeights[sec]||0) + w;
+    (x.thesisTags||[]).forEach(function(t){ thesisCounts[t]=(thesisCounts[t]||0)+1; });
+  });
+  return {sectorWeights:sectorWeights, thesisCounts:thesisCounts};
+}
+function portfolioFitGate(c, settings, ctx){
+  var curW = ctx.sectorWeights[c.sector||""] || 0;
+  if(curW >= settings.maxSectorWeight) return {pass:false, why:"sector \""+(c.sector||"—")+"\" already at "+fmtPct(curW)+" of held positions, at/above the "+fmtPct(settings.maxSectorWeight)+" cap"};
+  var tags = c.thesisTags||[];
+  for(var i=0;i<tags.length;i++){
+    var n = ctx.thesisCounts[tags[i]]||0;
+    if(n >= settings.maxSharedThesisHoldings) return {pass:false, why:"thesis tag \""+tags[i]+"\" already shared by "+n+" held position(s), at/above the cap of "+settings.maxSharedThesisHoldings};
+  }
+  return {pass:true, why:"no sector or thesis-overlap conflict"};
+}
+function computeCase(c, settings, allCases, excludeId){
+  var f = fundamentalScore(c), v = valuationScore(c), g = expectationGapScoreCalc(c, settings);
+  var total = f.score+v.score+g.score;
+  var risk = riskGate(c, settings);
+  var fit = clientFitGate(c, settings);
+  var ctx = portfolioContext(allCases, excludeId);
+  var pf = portfolioFitGate(c, settings, ctx);
+  var catalyst = !!c.catalystSpecific;
+  var gatesPass = risk && fit && pf.pass;
+  var verdict;
+  if(!gatesPass) verdict="REJECT";
+  else if(total <= -1) verdict="REJECT";
+  else if(total >= settings.buyPointsThreshold && catalyst) verdict="BUY";
+  else verdict="WATCH";
+  return {
+    fundamental:f, valuation:v, gap:g, total:total,
+    gates:{risk:risk, clientFit:fit, portfolioFit:pf.pass, portfolioFitWhy:pf.why, catalyst:catalyst},
+    verdict:verdict
+  };
+}
+
+// ---------- financial plan (Laura's real deadlines, separate from WInS trading) ----------
+function growthEngineBalance(plan, rate, atYear){
+  var b = 0;
+  if(atYear >= plan.contributionYear1) b += plan.contribution2027 * Math.pow(1+rate, atYear-plan.contributionYear1);
+  if(atYear >= plan.contributionYear2) b += plan.contribution2028 * Math.pow(1+rate, atYear-plan.contributionYear2);
+  return b;
+}
+function requiredReserve(plan, rate){
+  var n = plan.reserveEndYear - plan.reserveStartYear + 1;
+  var pv = 0;
+  for(var k=0;k<n;k++){ pv += plan.annualPayment / Math.pow(1+rate, k); }
+  return pv;
+}
+// ---------- Liability matching: reserve ladder ----------
+// Instead of discounting all ten payments at one blended rate, each payment year gets its
+// own "rung" — the cost today of an asset that matures exactly when that payment is due
+// (e.g. a zero-coupon Treasury). If the team has researched real maturity-matched yields,
+// they can override individual rungs; otherwise every rung defaults to the flat
+// reserveSafeReturn assumption (mathematically identical to the old single-rate PV calc).
+function requiredReserveLadder(plan){
+  var n = plan.reserveEndYear - plan.reserveStartYear + 1;
+  var curve = plan.reserveYieldCurve;
+  var rungs = [];
+  var total = 0;
+  for(var k=0;k<n;k++){
+    var override = (curve && curve[k]!==undefined && curve[k]!==null && !isNaN(curve[k])) ? curve[k] : null;
+    var rate = override!==null ? override : plan.reserveSafeReturn;
+    var cost = plan.annualPayment / Math.pow(1+rate, k);
+    rungs.push({year:plan.reserveStartYear+k, rate:rate, cost:cost, overridden:override!==null && Math.abs(override-plan.reserveSafeReturn)>1e-9});
+    total += cost;
+  }
+  return {total:total, rungs:rungs};
+}
+// ---------- Client-specific Monte Carlo funding probability ----------
+// Seeded PRNG (mulberry32) so results are reproducible run-to-run and browser-to-browser —
+// re-running the same assumptions always gives the same probability, which matters if
+// judges ask you to reproduce a number.
+function seededRng(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function randNormal(rng){
+  var u=0, v=0;
+  while(u===0) u = rng();
+  while(v===0) v = rng();
+  return Math.sqrt(-2*Math.log(u)) * Math.cos(2*Math.PI*v);
+}
+function runMonteCarlo(plan, reserveNeeded, trials){
+  trials = trials || 5000;
+  var rng = seededRng(20260918);
+  var endBalances = [];
+  var successes = 0;
+  for(var i=0;i<trials;i++){
+    var bal = 0;
+    for(var year=plan.contributionYear1; year<plan.reserveStartYear; year++){
+      if(year===plan.contributionYear1) bal += plan.contribution2027;
+      if(year===plan.contributionYear2) bal += plan.contribution2028;
+      var z = randNormal(rng);
+      var r = plan.growthTargetReturn + z*plan.growthReturnVolatility;
+      bal = bal * (1+r);
+    }
+    endBalances.push(bal);
+    if(bal >= reserveNeeded) successes++;
+  }
+  endBalances.sort(function(a,b){return a-b;});
+  function pct(p){
+    var idx = Math.min(endBalances.length-1, Math.max(0, Math.floor(p*endBalances.length)));
+    return endBalances[idx];
+  }
+  return {
+    trials:trials,
+    probability: successes/trials,
+    p10: pct(0.10), p50: pct(0.50), p90: pct(0.90)
+  };
+}
+function computePlan(plan){
+  var ladder = requiredReserveLadder(plan);
+  var reserveNeeded = ladder.total;
+  var balanceAt2033 = growthEngineBalance(plan, plan.growthTargetReturn, plan.reserveStartYear);
+  var reserveFunded = Math.min(reserveNeeded, balanceAt2033);
+  var onPaceFor2033 = balanceAt2033 >= reserveNeeded;
+  var facilityAmount = Math.max(0, balanceAt2033 - reserveNeeded);
+
+  var years = [];
+  var year;
+  for(year = plan.contributionYear1; year < plan.reserveStartYear; year++){
+    years.push({year:year, phase:"growth", balance:growthEngineBalance(plan, plan.growthTargetReturn, year)});
+  }
+  var reserveBal = reserveFunded;
+  var ranOutYear = null;
+  for(year = plan.reserveStartYear; year <= plan.reserveEndYear; year++){
+    reserveBal -= plan.annualPayment;
+    var covered = reserveBal >= -1e-6;
+    if(!covered && ranOutYear===null) ranOutYear = year;
+    years.push({year:year, phase:"reserve", balanceBeforeGrowth:reserveBal, covered:covered});
+    reserveBal = reserveBal * (1+plan.reserveSafeReturn);
+  }
+
+  var balLow = growthEngineBalance(plan, plan.growthReturnLow, plan.reserveStartYear);
+  var balHigh = growthEngineBalance(plan, plan.growthReturnHigh, plan.reserveStartYear);
+  var facilityLow = Math.max(0, balLow - reserveNeeded);
+  var facilityHigh = Math.max(0, balHigh - reserveNeeded);
+  var balAt2031Target = growthEngineBalance(plan, plan.growthTargetReturn, plan.rangeCheckpointYear);
+
+  var mc = runMonteCarlo(plan, reserveNeeded, 5000);
+  var mcFacilityP10 = Math.max(0, mc.p10 - reserveNeeded);
+  var mcFacilityP50 = Math.max(0, mc.p50 - reserveNeeded);
+  var mcFacilityP90 = Math.max(0, mc.p90 - reserveNeeded);
+
+  return {
+    reserveNeeded:reserveNeeded, balanceAt2033:balanceAt2033, onPaceFor2033:onPaceFor2033,
+    facilityAmount:facilityAmount, years:years, ranOutYear:ranOutYear,
+    facilityLow:facilityLow, facilityHigh:facilityHigh, balLow:balLow, balHigh:balHigh,
+    balAt2031Target:balAt2031Target,
+    ladder:ladder,
+    monteCarlo:mc, mcFacilityP10:mcFacilityP10, mcFacilityP50:mcFacilityP50, mcFacilityP90:mcFacilityP90
+  };
+}
+function fmtMoney(x){
+  if(x===undefined||x===null||isNaN(x)) return "—";
+  return "$"+Math.round(x).toLocaleString();
+}
+
+// ---------- Firebase boot (standalone, non-Claude version) ----------
+// This app can run two ways:
+//  1) Pasted into a Claude artifact — uses claude.use("db")/("user") (see getCap below).
+//  2) Downloaded as a plain .html file and opened in any browser, or hosted anywhere
+//     (GitHub Pages, Netlify, your own server) — uses Firebase instead, configured below.
+//
+// [TEAM SETUP REQUIRED] Fill in FIREBASE_CONFIG with your own free Firebase project's
+// config object (see the setup instructions the team was given alongside this file).
+// Until you do, the app runs in local demo mode: it works, but nothing is shared or saved
+// between browsers/devices.
+var FIREBASE_CONFIG = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+var firebaseConfigured = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf("YOUR_") !== 0);
+
+var localUserId = null, localUserName = null;
+function localProfileName(){
+  var n = null;
+  try{ n = localStorage.getItem("crimeLabName"); }catch(e){}
+  if(!n){
+    n = (window.prompt("What's your name? (shown next to changes you make — only your teammates see it)") || "Teammate").trim() || "Teammate";
+    try{ localStorage.setItem("crimeLabName", n); }catch(e){}
+  }
+  return n;
+}
+function initFirebaseUser(fsDb){
+  return new Promise(function(resolve){
+    if(!(window.firebase && firebase.auth)){ resolve(); return; }
+    firebase.auth().onAuthStateChanged(function(user){
+      if(!user) return;
+      localUserId = user.uid;
+      localUserName = localProfileName();
+      state.userId = localUserId;
+      try{ fsDb.collection("users").doc(localUserId).set({name:localUserName}, {merge:true}); }catch(e){}
+      resolve();
+    });
+    firebase.auth().signInAnonymously().catch(function(e){ console.error("Firebase anonymous sign-in failed:", e); resolve(); });
+  });
+}
+function makeFirebaseUserCap(fsDb){
+  return {
+    id: function(){ return Promise.resolve(localUserId); },
+    profiles: function(ids){
+      ids = Array.isArray(ids) ? ids : [ids];
+      var uniq = Array.from(new Set(ids));
+      return Promise.all(uniq.map(function(id){
+        return fsDb.collection("users").doc(id).get().then(function(d){
+          var data = (d && d.exists) ? d.data() : null;
+          return [id, {id:id, name:(data && data.name) || "", avatarUrl:"", color:"", email:null, isMe:id===localUserId}];
+        }).catch(function(){ return [id, {id:id, name:"", avatarUrl:"", color:"", email:null, isMe:false}]; });
+      })).then(function(pairs){
+        var out={}; pairs.forEach(function(p){ out[p[0]]=p[1]; }); return out;
+      });
+    }
+  };
+}
+async function getCap(name, opts){
+  // Claude-artifact mode: use the real platform capability when this file is running as
+  // a claude.ai artifact.
+  try{
+    if(window.claude && window.claude.use){
+      var cap = await window.claude.use(name);
+      if(cap) return cap;
+    }
+  }catch(e){}
+  return null;
+}
+async function boot(){
+  db = await getCap("db");
+  userCap = await getCap("user");
+
+  // Standalone mode: no Claude platform available, but a real Firebase project is configured.
+  if(!db && firebaseConfigured && window.firebase){
+    try{
+      var app = firebase.apps && firebase.apps.length ? firebase.apps[0] : firebase.initializeApp(FIREBASE_CONFIG);
+      var fsDb = firebase.firestore();
+      await initFirebaseUser(fsDb);
+      db = fsDb;
+      userCap = makeFirebaseUserCap(fsDb);
+    }catch(e){ console.error("Firebase init failed:", e); db = null; }
+  }
+
+  if(userCap && !state.userId){ try{ state.userId = await userCap.id(); }catch(e){} }
+
+  if(db){
+    state.dbReady = true;
+    var col = db.collection("cases");
+    unsubCases = col.onSnapshot(function(snap){
+      state.cases = snap.docs.map(function(d){ var data=d.data()||{}; data.id=d.id; return data; });
+      resolveProfiles();
+      render();
+    }, function(){});
+    var sdoc = db.doc("settings/thresholds");
+    unsubSettings = sdoc.onSnapshot(function(snap){
+      state.settings = snap.exists ? mergeSettings(snap.data()) : DEFAULT_SETTINGS;
+      render();
+    }, function(){});
+    var pdoc = db.doc("settings/financialplan");
+    unsubPlan = pdoc.onSnapshot(function(snap){
+      state.plan = snap.exists ? mergePlan(snap.data()) : DEFAULT_PLAN;
+      render();
+    }, function(){});
+  } else {
+    state.cases = EXAMPLE_CASES.slice();
+    state.settings = DEFAULT_SETTINGS;
+    state.plan = DEFAULT_PLAN;
+    if(!firebaseConfigured){
+      console.warn("Investment Crime Lab: running in local demo mode. Fill in FIREBASE_CONFIG at the top of the <script> to enable shared, saved data across the team.");
+    }
+  }
+  render();
+}
+function mergeSettings(s){
+  var m = JSON.parse(JSON.stringify(DEFAULT_SETTINGS));
+  for(var k in s){ if(k==="bucketMaxVolatility"||k==="targetHoldings"){ for(var k2 in s[k]){ m[k][k2]=s[k][k2]; } } else { m[k]=s[k]; } }
+  return m;
+}
+function mergePlan(p){
+  var m = JSON.parse(JSON.stringify(DEFAULT_PLAN));
+  for(var k in p){ m[k]=p[k]; }
+  return m;
+}
+async function resolveProfiles(){
+  if(!userCap) return;
+  var ids = Array.from(new Set(state.cases.map(function(c){return c.createdBy;}).filter(Boolean)));
+  if(!ids.length) return;
+  try{
+    var ps = await userCap.profiles(ids);
+    state.profiles = ps;
+    render();
+  }catch(e){}
+}
+function whoName(id){
+  if(!id) return "the team";
+  var p = state.profiles[id];
+  return (p && p.name) || "a teammate";
+}
+
+// ---------- db writes ----------
+async function addCase(data){
+  data.status="open"; data.createdAt=new Date().toISOString(); data.createdBy=state.userId;
+  if(db){ await db.collection("cases").add(data); }
+  else { data.id="local-"+Date.now(); state.cases.push(data); render(); }
+}
+async function updateCase(id, patch){
+  if(db){ await db.doc("cases/"+id).update(patch); }
+  else { var c=state.cases.find(function(x){return x.id===id;}); if(c) Object.assign(c,patch); render(); }
+}
+async function deleteCase(id){
+  if(db){ await db.doc("cases/"+id).delete(); }
+  else { state.cases = state.cases.filter(function(x){return x.id!==id;}); render(); }
+}
+async function saveSettings(newSettings, reason){
+  var entry = {at:new Date().toISOString(), by:state.userId, reason:reason};
+  var log = (state.settings.changeLog||[]).slice(-19);
+  log.push(entry);
+  var toSave = JSON.parse(JSON.stringify(newSettings));
+  toSave.changeLog = log;
+  if(db){ await db.doc("settings/thresholds").set(toSave); }
+  else { state.settings = toSave; render(); }
+}
+async function savePlan(newPlan, reason){
+  var entry = {at:new Date().toISOString(), by:state.userId, reason:reason};
+  var log = (state.plan.changeLog||[]).slice(-19);
+  log.push(entry);
+  var toSave = JSON.parse(JSON.stringify(newPlan));
+  toSave.changeLog = log;
+  if(db){ await db.doc("settings/financialplan").set(toSave); }
+  else { state.plan = toSave; render(); }
+}
+
+// ---------- navigation ----------
+function go(view, extra){
+  state.view = view;
+  if(extra){ Object.assign(state, extra); }
+  window.scrollTo(0,0);
+  render();
+}
+
+// ---------- render dispatch ----------
+function render(){
+  var app = document.getElementById("app");
+  app.innerHTML = navHtml() + brushHtml() + bodyHtml();
+  wire();
+}
+function navHtml(){
+  var items=[["dashboard","Home"],["new","New case"],["list","Case files"],["buckets","Buckets"],["plan","Plan"],["graveyard","Graveyard"],["coldcases","Cold cases"],["settings","Settings"]];
+  return '<div class="topnav"><span class="brand">Crime Lab</span>' + items.map(function(it){
+    return '<button class="navbtn'+(state.view===it[0]?' active':'')+'" data-nav="'+it[0]+'">'+it[1]+'</button>';
+  }).join("") + '</div>';
+}
+function blobs(variant){
+  var palettes = {
+    dashboard:[["var(--growth)","blob-a",280,-40,140,140],["var(--reserve)","blob-b",520,10,160,150],["var(--facility)","blob-c",120,60,130,120]],
+    "new":[["var(--cerulean)","blob-a",380,-30,220,180],["var(--cerulean)","blob-c",600,40,70,60]],
+    list:[["var(--plum)","blob-b",380,-20,220,180],["var(--plum)","blob-d",610,50,60,55]],
+    buckets:[["var(--growth)","blob-a",120,10,150,140],["var(--reserve)","blob-c",380,-30,160,150],["var(--facility)","blob-b",620,20,150,140]],
+    plan:[["var(--ledger)","blob-a",380,-20,220,180],["var(--ledger)","blob-c",620,30,60,55]],
+    graveyard:[["var(--rust)","blob-c",380,-20,230,190],["var(--rust)","blob-b",640,10,40,45],["var(--rust)","blob-d",700,80,30,30],["var(--rust)","blob-a",660,150,35,35]],
+    coldcases:[["var(--teal)","blob-d",380,-20,220,180]],
+    settings:[["var(--taupe)","blob-a",380,-20,200,170]],
+    detail_buy:[["var(--buy)","blob-a",380,-20,220,180]],
+    detail_watch:[["var(--watch)","blob-b",380,-20,220,180]],
+    detail_reject:[["var(--reject)","blob-c",380,-20,220,180]]
+  };
+  var set = palettes[variant]||palettes.dashboard;
+  var extraClass = variant==="coldcases" ? " blob-faded" : (variant==="graveyard" ? " blob-rough" : "");
+  return set.map(function(b){
+    return '<div class="blob '+b[1]+extraClass+'" style="background:'+b[0]+';left:'+b[2]+'px;top:'+b[3]+'px;width:'+b[4]+'px;height:'+b[5]+'px;"></div>';
+  }).join("");
+}
+function brushHtml(){
+  var titles = {
+    dashboard:["Home","Where every open investigation and every bucket stands."],
+    "new":["New case","Open a case file on a company you suspect the market has wrong."],
+    list:["Case files","Every stock the team has investigated, with its verdict."],
+    detail:["Case file","The full evidence, the countercase, and the verdict."],
+    buckets:["Buckets","Growth Engine, Operating Reserve, and Facility Contribution."],
+    graveyard:["Thesis graveyard","Failed theses, and what they taught us."],
+    coldcases:["Cold cases","Rejected, not forgotten — reopen only when the evidence changes."],
+    settings:["Settings","The rulebook. Change it deliberately, and say why."],
+    plan:["Laura's timeline","Contributions, the ten-year reserve, and whether the plan is on pace."]
+  };
+  var key = state.view;
+  var variant = key;
+  if(key==="detail"){
+    var c = state.cases.find(function(x){return x.id===state.currentCaseId;});
+    if(c){ var r = computeCase(c, state.settings, state.cases, c.id); variant = "detail_"+r.verdict.toLowerCase(); }
+  }
+  var t = titles[key] || titles.dashboard;
+  return '<div class="brushzone">'+blobs(variant)+'<h1>'+esc(t[0])+'</h1><div class="sub">'+esc(t[1])+'</div></div>';
+}
+function bodyHtml(){
+  switch(state.view){
+    case "new": return newCaseHtml(state.editCaseId ? state.cases.find(function(c){return c.id===state.editCaseId;}) : null);
+    case "list": return listHtml();
+    case "detail": return detailHtml();
+    case "buckets": return bucketsHtml();
+    case "graveyard": return graveyardHtml();
+    case "coldcases": return coldCasesHtml();
+    case "settings": return settingsHtml();
+    case "plan": return planHtml();
+    default: return dashboardHtml();
+  }
+}
+
+// ---------- icons ----------
+function iconCheck(){ return '<svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'; }
+function iconEye(){ return '<svg viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="2"/></svg>'; }
+function iconX(){ return '<svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>'; }
+function spillSvg(){
+  return '<svg class="spill" width="46" height="42" viewBox="0 0 46 42" fill="none">'+
+    '<g transform="rotate(-25 20 14)"><path d="M8 6 L32 6 L28 20 L12 20 Z" fill="var(--reject)" opacity="0.85"/><ellipse cx="20" cy="6" rx="12" ry="3" fill="var(--reject)"/></g>'+
+    '<path d="M18 24 C 14 30, 22 30, 20 36 C 18 40, 28 40, 26 34 C 30 32, 24 26, 18 24 Z" fill="var(--reject)" opacity="0.7"/>'+
+    '</svg>';
+}
+function bucketSvg(pct, colorBase, colorFill, label, sub){
+  pct = Math.max(0,Math.min(100,pct));
+  var w=110, topY=18, botY=108, bucketH=botY-topY;
+  var fillH = bucketH*pct/100;
+  var liquidY = botY - fillH;
+  return '<div class="bucketviz"><svg width="'+w+'" height="120" viewBox="0 0 '+w+' 120">'+
+    '<defs><clipPath id="clip-'+label+'"><path d="M14 18 L96 18 L84 108 L26 108 Z"/></clipPath></defs>'+
+    '<g clip-path="url(#clip-'+label+')">'+
+      '<rect x="0" y="'+liquidY+'" width="'+w+'" height="'+(fillH+40)+'" fill="'+colorBase+'"></rect>'+
+      '<path class="wave" d="M0 '+liquidY+' Q '+(w/4)+' '+(liquidY-4)+' '+(w/2)+' '+liquidY+' T '+w+' '+liquidY+' V'+(liquidY+10)+' H0 Z" fill="'+colorFill+'" opacity="0.8"></path>'+
+    '</g>'+
+    '<path d="M14 18 L96 18 L84 108 L26 108 Z" fill="none" stroke="'+colorBase+'" stroke-width="2.5"></path>'+
+    '<ellipse cx="55" cy="18" rx="41" ry="6" fill="none" stroke="'+colorBase+'" stroke-width="2"></ellipse>'+
+  '</svg></div>';
+}
+
+// ---------- Dashboard ----------
+function dashboardHtml(){
+  var open = state.cases.filter(function(c){return c.status==="open";});
+  var counts = {BUY:0,WATCH:0,REJECT:0};
+  var byBucket = {growth_engine:[], operating_reserve:[], facility_contribution:[]};
+  var sectorCount = {};
+  open.forEach(function(c){
+    var r = computeCase(c, state.settings, state.cases, c.id);
+    counts[r.verdict]++;
+    if(r.verdict==="BUY"){
+      byBucket[c.bucket] = byBucket[c.bucket]||[];
+      byBucket[c.bucket].push(c);
+      var s=c.sector||"—"; sectorCount[s]=(sectorCount[s]||0)+1;
+    }
+  });
+  var totalBuy = counts.BUY||1;
+  var overweight = Object.keys(sectorCount).filter(function(s){ return (sectorCount[s]/totalBuy) >= state.settings.maxSectorWeight; });
+  var soon = open.filter(function(c){
+    if(!c.catalystDate) return false;
+    var d = new Date(c.catalystDate); var days=(d-new Date())/86400000;
+    return days>=0 && days<=7;
+  });
+  var coldCount = state.cases.filter(function(c){return c.status==="coldcase";}).length;
+  var gCounts={};
+  state.cases.filter(function(c){return c.status==="graveyard" && c.graveyard;}).forEach(function(c){
+    var r=c.graveyard.failureReason; gCounts[r]=(gCounts[r]||0)+1;
+  });
+  var nearTrigger = Object.keys(gCounts).filter(function(r){ return gCounts[r]===state.settings.graveyardRepeatThreshold-1; });
+
+  var planR = computePlan(state.plan);
+  var html = '<div class="card" style="margin-bottom:12px;">'+
+    '<div class="section-title">Laura\'s timeline</div>'+
+    '<div class="scorerow"><span>On pace for the '+state.plan.reserveStartYear+' reserve requirement ('+fmtMoney(planR.reserveNeeded)+') at a '+(state.plan.growthTargetReturn*100).toFixed(0)+'% assumed return?</span>'+
+    '<span class="daub '+(planR.onPaceFor2033?"buy":"reject")+'">'+(planR.onPaceFor2033?"ON PACE":"SHORT")+'</span></div>'+
+    (planR.ranOutYear ? '<p class="small" style="color:var(--bad);">Reserve simulation runs dry in '+planR.ranOutYear+'.</p>' : '<p class="small" style="color:var(--ok);">Reserve simulation covers all payments through '+state.plan.reserveEndYear+'.</p>')+
+    '<button class="btn" data-nav="plan">Open the plan</button>'+
+    '</div>';
+
+  html += '<div class="grid grid-3">'+
+    metricCard("BUY","daub buy",counts.BUY)+
+    metricCard("WATCH","daub watch",counts.WATCH)+
+    metricCard("REJECT","daub reject",counts.REJECT)+
+    '</div>';
+
+  html += '<div class="section-title">Bucket allocation (by case count, not dollars — your team hasn\'t wired real position sizes into this app yet)</div>';
+  html += '<div class="grid grid-3">';
+  ["growth_engine","operating_reserve","facility_contribution"].forEach(function(b){
+    var n = (byBucket[b]||[]).length;
+    var target = state.settings.targetHoldings[b]||0;
+    var pct = target>0 ? Math.round(100*n/target) : (n>0?100:0);
+    var colors = {growth_engine:["var(--growth)","var(--growth-fill)"], operating_reserve:["var(--reserve)","var(--reserve-fill)"], facility_contribution:["var(--facility)","var(--facility-fill)"]};
+    html += '<div class="card" style="text-align:center;"><h3>'+BUCKET_LABEL[b]+'</h3>'+bucketSvg(pct,colors[b][0],colors[b][1],b)+'<div class="small">'+n+' BUY holding'+(n===1?"":"s")+(target?(" of "+target+" target"):"")+'</div></div>';
+  });
+  html += '</div>';
+
+  if(overweight.length){
+    html += '<div class="section-title">Alerts</div><div class="card"><p>Sector concentration: <b>'+overweight.map(esc).join(", ")+'</b> '+(overweight.length===1?"is":"are")+' at or above the '+fmtPct(state.settings.maxSectorWeight)+' cap among held BUY positions.</p></div>';
+  }
+  if(soon.length){
+    html += '<div class="card" style="margin-top:10px;"><p><b>'+soon.length+'</b> case'+(soon.length===1?"":"s")+' with a catalyst in the next 7 days: '+soon.map(function(c){return esc(c.company);}).join(", ")+'</p></div>';
+  }
+  if(nearTrigger.length){
+    html += '<div class="card" style="margin-top:10px;"><p>Graveyard watch: <b>'+nearTrigger.map(function(r){return FAILURE_REASONS[r]||r;}).join(", ")+'</b> '+(nearTrigger.length===1?"is":"are")+' one failure away from the repeat-pattern trigger ('+state.settings.graveyardRepeatThreshold+'+).</p></div>';
+  }
+  if(coldCount>0){
+    html += '<div class="card" style="margin-top:10px;"><p><b>'+coldCount+'</b> cold case'+(coldCount===1?"":"s")+' waiting — worth a periodic check on whether their reopen conditions have been met.</p></div>';
+  }
+  if(!open.length){
+    html = '<div class="empty"><h3>No cases yet</h3><p>Open your first case file to start investigating.</p><br><button class="btn btn-primary" data-nav="new">New case file</button></div>';
+  }
+  return html;
+}
+function metricCard(label, cls, n){
+  return '<div class="card" style="text-align:center;"><div class="'+cls+'">'+label+'</div><div style="font-size:32px;font-weight:700;margin-top:10px;">'+n+'</div></div>';
+}
+
+// ---------- New / Edit case ----------
+function newCaseHtml(existing){
+  var c = existing || {};
+  var g = function(k,d){ return c[k]!==undefined ? c[k] : d; };
+  var tags = (c.thesisTags||[]).join(", ");
+  return '<div class="two-col">'+
+  '<div>'+
+  '<form id="caseform">'+
+  '<div class="card">'+
+    '<div class="section-title">Identify</div>'+
+    field("text","company","Company","e.g. Netflix (NFLX)", g("company",""))+
+    '<div class="field"><label>Bucket</label><select id="f_bucket">'+
+      option("growth_engine","Growth Engine",g("bucket","growth_engine"))+
+      option("facility_contribution","Facility Contribution",g("bucket","growth_engine"))+
+      option("operating_reserve","Operating Reserve",g("bucket","growth_engine"))+
+    '</select></div>'+
+    field("text","marketBelief","What does the market seem to believe?","One sentence.", g("marketBelief",""))+
+    '<div class="field"><label>Possible market mistake</label><select id="f_marketMistake">'+
+      Object.keys(MARKET_MISTAKES).map(function(k){return option(k, MARKET_MISTAKES[k], g("marketMistake","underreaction"));}).join("")+
+    '</select></div>'+
+    field("text","sector","Sector","e.g. Technology", g("sector",""))+
+    field("text","thesisTags","Thesis tag(s) — comma separated","e.g. margin re-rating", tags)+
+  '</div>'+
+  '<div class="card">'+
+    '<div class="section-title">Fundamentals</div><div class="formgrid">'+
+    numField("revenueGrowthRecent","Recent revenue growth","0.14",g("revenueGrowthRecent",""))+
+    numField("revenueGrowthPrior","Prior-period revenue growth","0.09",g("revenueGrowthPrior",""))+
+    numField("marginNow","Margin now","0.41",g("marginNow",""))+
+    numField("margin3yrAgo","Margin 3 years ago","0.35",g("margin3yrAgo",""))+
+    '</div></div>'+
+  '<div class="card">'+
+    '<div class="section-title">Valuation</div>'+
+    checkField("belowOwn5yr","Below its own 5-year average valuation?", g("belowOwn5yr",false))+
+    checkField("belowPeerMedian","Below peer median valuation?", g("belowPeerMedian",false))+
+  '</div>'+
+  '<div class="card">'+
+    '<div class="section-title">Expectation gap</div><div class="formgrid">'+
+    numField("price","Current price","85", g("price",""))+
+    numField("fcfPerShare","Free cash flow / share","4.2", g("fcfPerShare",""))+
+    numField("discountRate","Discount rate assumption","0.09", g("discountRate",""))+
+    numField("ourEstimatedGrowth","Your team's growth estimate","0.13", g("ourEstimatedGrowth",""))+
+    '</div><div class="hint">Reflect the actual rate environment here — this is where Fed policy should show up in the math.</div></div>'+
+  '<div class="card">'+
+    '<div class="section-title">Catalyst</div>'+
+    checkField("catalystSpecific","Specific and dated? (not \"eventually the market will notice\")", g("catalystSpecific",false))+
+    field("text","catalystDescription","Description","e.g. Q3 earnings, guidance update", g("catalystDescription",""))+
+    field("date","catalystDate","Date (optional — powers the dashboard\'s upcoming-catalyst alert)","",g("catalystDate",""))+
+  '</div>'+
+  '<div class="card">'+
+    '<div class="section-title">Risk</div><div class="formgrid">'+
+    numField("debtToEbitda","Debt / EBITDA","1.8", g("debtToEbitda",""))+
+    numField("historicalVolatility","Historical volatility (annualized)","0.30", g("historicalVolatility",""))+
+    '</div></div>'+
+  '<div class="card">'+
+    '<div class="section-title">Portfolio bookkeeping</div>'+
+    checkField("heldPosition","Currently held in the real portfolio?", g("heldPosition",false))+
+    numField("currentWeight","Current weight (0–1, of its bucket)","0", g("currentWeight",0))+
+  '</div>'+
+  '<div class="card">'+
+    '<div class="section-title">The case, in your own words</div>'+
+    field("textarea","caseForNotes","Case for","Why you might be right.", g("caseForNotes",""))+
+    field("textarea","caseAgainstNotes","Countercase","Why you might be wrong — don\'t skip this.", g("caseAgainstNotes",""))+
+    field("textarea","falsificationCondition","Falsification condition","What specific evidence would prove you wrong?", g("falsificationCondition",""))+
+  '</div>'+
+  '<div style="display:flex;gap:10px;margin-top:6px;">'+
+    '<button type="button" class="btn btn-primary" id="saveCaseBtn">'+(existing?"Save changes":"Save case file")+'</button>'+
+    '<button type="button" class="btn" data-nav="list">Cancel</button>'+
+  '</div>'+
+  '</form>'+
+  '</div>'+
+  '<div><div class="card scorepanel" id="scorepanel"></div></div>'+
+  '</div>';
+}
+function field(type,id,label,placeholder,val){
+  if(type==="textarea") return '<div class="field"><label>'+esc(label)+'</label><textarea id="f_'+id+'" placeholder="'+esc(placeholder)+'">'+esc(val)+'</textarea></div>';
+  return '<div class="field"><label>'+esc(label)+'</label><input type="'+type+'" id="f_'+id+'" placeholder="'+esc(placeholder)+'" value="'+esc(val)+'"></div>';
+}
+function numField(id,label,placeholder,val){
+  return '<div class="field"><label>'+esc(label)+'</label><input type="number" step="any" id="f_'+id+'" placeholder="'+esc(placeholder)+'" value="'+esc(val)+'"></div>';
+}
+function checkField(id,label,checked){
+  return '<div class="field checkrow"><input type="checkbox" id="f_'+id+'" '+(checked?"checked":"")+'><label for="f_'+id+'" style="margin:0;">'+esc(label)+'</label></div>';
+}
+function option(val,label,current){
+  return '<option value="'+val+'"'+(val===current?" selected":"")+'>'+esc(label)+'</option>';
+}
+function readForm(){
+  function v(id){ var el=document.getElementById("f_"+id); return el?el.value:""; }
+  function chk(id){ var el=document.getElementById("f_"+id); return el?el.checked:false; }
+  return {
+    company:v("company"), bucket:v("bucket"), marketBelief:v("marketBelief"), marketMistake:v("marketMistake"),
+    sector:v("sector"), thesisTags:v("thesisTags").split(",").map(function(s){return s.trim();}).filter(Boolean),
+    revenueGrowthRecent:num(v("revenueGrowthRecent")), revenueGrowthPrior:num(v("revenueGrowthPrior")),
+    marginNow:num(v("marginNow")), margin3yrAgo:num(v("margin3yrAgo")),
+    belowOwn5yr:chk("belowOwn5yr"), belowPeerMedian:chk("belowPeerMedian"),
+    price:num(v("price")), fcfPerShare:num(v("fcfPerShare")), discountRate:num(v("discountRate")), ourEstimatedGrowth:num(v("ourEstimatedGrowth")),
+    catalystSpecific:chk("catalystSpecific"), catalystDescription:v("catalystDescription"), catalystDate:v("catalystDate"),
+    debtToEbitda:num(v("debtToEbitda")), historicalVolatility:num(v("historicalVolatility")),
+    heldPosition:chk("heldPosition"), currentWeight:num(v("currentWeight")),
+    caseForNotes:v("caseForNotes"), caseAgainstNotes:v("caseAgainstNotes"), falsificationCondition:v("falsificationCondition")
+  };
+}
+function renderScorePanel(excludeId){
+  var data = readForm();
+  var r = computeCase(data, state.settings, state.cases, excludeId);
+  var rows = [
+    ["Fundamental trend", r.fundamental.score, r.fundamental.why],
+    ["Valuation", r.valuation.score, r.valuation.why],
+    ["Expectation gap", r.gap.score, r.gap.why]
+  ];
+  var html = '<h3>Live score</h3>';
+  rows.forEach(function(row){
+    var cls = row[1]>0?"pos":(row[1]<0?"neg":"zero");
+    html += '<div class="scorerow"><span>'+row[0]+'</span><span class="scoreval '+cls+'">'+(row[1]>0?"+":"")+row[1]+'</span></div>';
+    html += '<div class="hint" style="margin:-2px 0 6px;">'+esc(row[2])+'</div>';
+  });
+  html += '<div class="scorerow"><span><b>Total</b></span><span class="scoreval '+(r.total>0?"pos":r.total<0?"neg":"zero")+'"><b>'+(r.total>0?"+":"")+r.total+'</b></span></div>';
+  html += '<div class="hr"></div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.catalyst?"pass":"fail")+'"></span>Catalyst present'+(r.gates.catalyst?"":" — caps at WATCH")+'</div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.risk?"pass":"fail")+'"></span>Risk gate</div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.clientFit?"pass":"fail")+'"></span>Client fit ('+BUCKET_LABEL[data.bucket]+')</div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.portfolioFit?"pass":"fail")+'"></span>Portfolio fit</div>';
+  if(!r.gates.portfolioFit){ html += '<div class="hint">'+esc(r.gates.portfolioFitWhy)+'</div>'; }
+  if(data.bucket==="operating_reserve" && !state.settings.allowStocksInReserve){
+    html += '<div class="hint">Individual stocks are excluded from the Operating Reserve by default (Final_Algorithm.md, Part 6). Change this in Settings only with a real justification.</div>';
+  }
+  html += '<div class="hr"></div><div style="text-align:center;"><div class="daub '+r.verdict.toLowerCase()+'">'+r.verdict+'</div></div>';
+  var panel = document.getElementById("scorepanel");
+  if(panel) panel.innerHTML = html;
+}
+
+// ---------- All Case Files ----------
+var listFilters = {bucket:"", verdict:"", mistake:""};
+function listHtml(){
+  var open = state.cases.filter(function(c){return c.status==="open";});
+  var sorted = state.cases.slice().sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt);});
+  function caseNum(c){ var idx = sorted.indexOf(c)+1; return "CASE #"+String(idx).padStart(3,"0"); }
+  var rows = open.filter(function(c){
+    if(listFilters.bucket && c.bucket!==listFilters.bucket) return false;
+    if(listFilters.mistake && c.marketMistake!==listFilters.mistake) return false;
+    var r = computeCase(c, state.settings, state.cases, c.id);
+    if(listFilters.verdict && r.verdict!==listFilters.verdict) return false;
+    return true;
+  });
+  var html = '<div class="filters">'+
+    filterSelect("bucket",[["","All buckets"],["growth_engine","Growth Engine"],["operating_reserve","Operating Reserve"],["facility_contribution","Facility Contribution"]])+
+    filterSelect("verdict",[["","All verdicts"],["BUY","BUY"],["WATCH","WATCH"],["REJECT","REJECT"]])+
+    filterSelect("mistake",[["","All mistakes"]].concat(Object.keys(MARKET_MISTAKES).map(function(k){return [k,MARKET_MISTAKES[k].split(" — ")[0]];})))+
+  '</div>';
+  if(!rows.length){
+    html += '<div class="empty"><h3>Nothing matches</h3><p>Try different filters, or open a new case file.</p></div>';
+    return html;
+  }
+  html += '<div class="card">';
+  rows.forEach(function(c){
+    var r = computeCase(c, state.settings, state.cases, c.id);
+    html += '<div class="caserow" data-open="'+c.id+'"><span class="cnum">'+caseNum(c)+'</span>'+
+      '<span class="cname">'+esc(c.company)+'</span>'+
+      '<span class="pill bucket-'+c.bucket+'">'+BUCKET_LABEL[c.bucket]+'</span>'+
+      '<span class="pill '+r.verdict.toLowerCase()+'">'+r.verdict+'</span>'+
+    '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+function filterSelect(key, opts){
+  return '<select data-filter="'+key+'">'+opts.map(function(o){return '<option value="'+o[0]+'"'+(listFilters[key]===o[0]?" selected":"")+'>'+esc(o[1])+'</option>';}).join("")+'</select>';
+}
+
+// ---------- Case detail ----------
+function detailHtml(){
+  var c = state.cases.find(function(x){return x.id===state.currentCaseId;});
+  if(!c) return '<div class="empty"><h3>Case not found</h3></div>';
+  var r = computeCase(c, state.settings, state.cases, c.id);
+  var sorted = state.cases.slice().sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt);});
+  var caseNum = "CASE #"+String(sorted.indexOf(c)+1).padStart(3,"0");
+  var vlow = r.verdict.toLowerCase();
+  var icon = r.verdict==="BUY"?iconCheck():(r.verdict==="REJECT"?iconX():iconEye());
+  var html = '<div class="card">';
+  html += '<div class="mono">'+caseNum+' · '+BUCKET_LABEL[c.bucket]+' · added by '+esc(whoName(c.createdBy))+'</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;margin:8px 0 4px;">';
+  html += '<h2 style="font-size:22px;">'+esc(c.company)+'</h2>';
+  html += '<div class="daub '+vlow+'">'+icon+r.verdict+(r.verdict==="REJECT"?spillSvg():"")+'</div>';
+  html += '</div>';
+  html += '<p class="small">Market belief: '+esc(c.marketBelief)+'</p>';
+  html += '<p class="small">Possible mistake: '+esc(MARKET_MISTAKES[c.marketMistake]||c.marketMistake)+'</p>';
+  html += (c.thesisTags||[]).map(function(t){return '<span class="tag">'+esc(t)+'</span>';}).join("");
+  html += '</div>';
+
+  html += '<div class="two-col" style="margin-top:14px;">';
+  html += '<div class="card for-col"><h3>Case for</h3><p>'+esc(c.caseForNotes||"—")+'</p></div>';
+  html += '<div class="card against-col"><h3>Countercase</h3><p>'+esc(c.caseAgainstNotes||"—")+'</p></div>';
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:14px;"><h3>Falsification condition</h3><p>'+esc(c.falsificationCondition||"—")+'</p></div>';
+
+  html += '<div class="section-title">Scores</div><div class="card">';
+  [["Fundamental trend",r.fundamental],["Valuation",r.valuation],["Expectation gap",r.gap]].forEach(function(p){
+    var cls = p[1].score>0?"pos":(p[1].score<0?"neg":"zero");
+    html += '<div class="scorerow"><span>'+p[0]+'</span><span class="scoreval '+cls+'">'+(p[1].score>0?"+":"")+p[1].score+'</span></div>';
+    html += '<div class="hint" style="margin:-2px 0 8px;">'+esc(p[1].why)+'</div>';
+  });
+  html += '<div class="scorerow"><span><b>Total</b></span><span class="scoreval '+(r.total>0?"pos":r.total<0?"neg":"zero")+'"><b>'+(r.total>0?"+":"")+r.total+'</b></span></div>';
+  html += '</div>';
+
+  html += '<div class="section-title">Gates</div><div class="card">';
+  html += '<div class="gate"><span class="dot '+(r.gates.catalyst?"pass":"fail")+'"></span>Catalyst: '+esc(c.catalystDescription||"none given")+(c.catalystDate?" ("+esc(c.catalystDate)+")":"")+'</div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.risk?"pass":"fail")+'"></span>Risk (Debt/EBITDA '+c.debtToEbitda+'×, volatility '+fmtPct(c.historicalVolatility)+')</div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.clientFit?"pass":"fail")+'"></span>Client fit for '+BUCKET_LABEL[c.bucket]+'</div>';
+  html += '<div class="gate"><span class="dot '+(r.gates.portfolioFit?"pass":"fail")+'"></span>Portfolio fit'+(!r.gates.portfolioFit?" — "+esc(r.gates.portfolioFitWhy):"")+'</div>';
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">';
+  html += '<button class="btn" data-edit="'+c.id+'">Edit</button>';
+  if(c.status==="open" && r.verdict==="REJECT"){
+    html += '<button class="btn" data-coldcase="'+c.id+'">Send to Cold Case</button>';
+  }
+  if(c.status==="open"){
+    html += '<button class="btn btn-danger" data-graveyard="'+c.id+'">Log as failed thesis</button>';
+  }
+  html += '<button class="btn" data-nav="list">Back to case files</button>';
+  html += '<button class="btn btn-danger" data-delete="'+c.id+'" style="margin-left:auto;">Delete case file</button>';
+  html += '</div>';
+  return html;
+}
+
+// ---------- Graveyard ----------
+function graveyardHtml(){
+  var items = state.cases.filter(function(c){return c.status==="graveyard" && c.graveyard;});
+  var counts = {};
+  items.forEach(function(c){ var r=c.graveyard.failureReason; counts[r]=(counts[r]||0)+1; });
+  var html = '<div class="card"><h3>Failure patterns</h3>';
+  var keys = Object.keys(FAILURE_REASONS);
+  if(!items.length){ html += '<p class="small">No failed theses logged yet.</p>'; }
+  else {
+    keys.forEach(function(k){
+      var n = counts[k]||0; if(!n) return;
+      var flag = n>=state.settings.graveyardRepeatThreshold;
+      html += '<div class="scorerow"><span>'+FAILURE_REASONS[k]+(flag?' — repeat pattern, worth a rule review':'')+'</span><span class="scoreval '+(flag?"neg":"zero")+'">'+n+'</span></div>';
+    });
+  }
+  html += '</div>';
+  if(!items.length){
+    html += '<div class="empty"><h3>Nothing here yet</h3><p>When a thesis fails, log it from its case file — that\'s how the strategy learns.</p></div>';
+    return html;
+  }
+  var sorted = state.cases.slice().sort(function(a,b){return new Date(a.createdAt)-new Date(b.createdAt);});
+  items.sort(function(a,b){return new Date(b.createdAt)-new Date(a.createdAt);}).forEach(function(c,i){
+    var age = (new Date()-new Date(c.createdAt))/86400000;
+    var fadeClass = age>90?"faded":"";
+    var num = "CASE #"+String(sorted.indexOf(c)+1).padStart(3,"0");
+    html += '<div class="gcard '+fadeClass+'" data-open="'+c.id+'" style="cursor:pointer;">'+
+      '<div class="casenum">'+num+'</div>'+
+      '<h3 style="margin:4px 0;">'+esc(c.company)+'</h3>'+
+      '<p class="small"><b>Original thesis:</b> '+esc(c.marketBelief)+'</p>'+
+      '<p class="small"><b>What happened:</b> '+esc(c.graveyard.whatHappened||"—")+'</p>'+
+      '<p class="small"><b>Why it failed:</b> '+(FAILURE_REASONS[c.graveyard.failureReason]||c.graveyard.failureReason)+'</p>'+
+    '</div>';
+  });
+  return html;
+}
+
+// ---------- Cold cases ----------
+function coldCasesHtml(){
+  var items = state.cases.filter(function(c){return c.status==="coldcase";});
+  if(!items.length){
+    return '<div class="empty"><h3>No cold cases</h3><p>A REJECT becomes a cold case when there\'s a real condition worth watching for.</p></div>';
+  }
+  var html = "";
+  items.forEach(function(c){
+    html += '<div class="gcard faded">'+
+      '<h3 style="margin:4px 0;">'+esc(c.company)+'</h3>'+
+      '<p class="small"><b>Reopen if:</b> '+esc(c.reopenCondition||"—")+'</p>'+
+      '<div style="margin-top:8px;"><button class="btn" data-open="'+c.id+'">View case</button> <button class="btn btn-primary" data-reopen="'+c.id+'">Mark reopened</button></div>'+
+    '</div>';
+  });
+  return html;
+}
+
+// ---------- Buckets ----------
+function bucketsHtml(){
+  var buckets = ["growth_engine","facility_contribution","operating_reserve"];
+  var colors = {growth_engine:["var(--growth)","var(--growth-fill)"], operating_reserve:["var(--reserve)","var(--reserve-fill)"], facility_contribution:["var(--facility)","var(--facility-fill)"]};
+  var html = '<div class="grid grid-3">';
+  buckets.forEach(function(b){
+    var held = state.cases.filter(function(c){return c.status==="open" && c.bucket===b && c.heldPosition;});
+    var target = state.settings.targetHoldings[b]||0;
+    var pct = target>0? Math.round(100*held.length/target) : (held.length>0?100:0);
+    html += '<div class="card bucketcol"><h3>'+BUCKET_LABEL[b]+'</h3>'+bucketSvg(pct,colors[b][0],colors[b][1],b)+
+      '<div class="small" style="text-align:center;">'+held.length+' held'+(target?(" / "+target+" target"):"")+'</div>';
+    if(b==="operating_reserve"){
+      html += '<div class="hint" style="margin-top:8px;">'+(state.settings.allowStocksInReserve?"Stocks currently allowed here (team override is on).":"Individual stocks excluded here by default — see Settings.")+'</div>';
+    }
+    html += '<div class="hr"></div>';
+    if(!held.length){ html += '<p class="small">No held positions yet.</p>'; }
+    held.forEach(function(c){
+      html += '<div class="caserow" data-open="'+c.id+'" style="padding:8px 2px;"><span class="cname">'+esc(c.company)+'</span><span class="small">'+esc(c.sector||"")+'</span></div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+// ---------- Settings ----------
+function settingsHtml(){
+  var s = state.settings;
+  var html = '<div class="card">';
+  html += '<div class="section-title">Decision thresholds</div>';
+  html += settingNum("buyPointsThreshold","Points needed for BUY (with a catalyst)", s.buyPointsThreshold, 1);
+  html += settingNum("expectationGapThreshold","Expectation-gap threshold to count as meaningful", s.expectationGapThreshold, 0.001);
+  html += '<div class="section-title">Risk gate</div>';
+  html += settingNum("riskMaxDebtToEbitda","Max Debt / EBITDA", s.riskMaxDebtToEbitda, 0.1);
+  html += settingNum("riskMaxVolatility","Max historical volatility (overall)", s.riskMaxVolatility, 0.01);
+  html += '<div class="section-title">Client-fit volatility ceilings</div>';
+  html += settingNum("bucketMaxVolatility.growth_engine","Growth Engine ceiling", s.bucketMaxVolatility.growth_engine, 0.01);
+  html += settingNum("bucketMaxVolatility.facility_contribution","Facility Contribution ceiling", s.bucketMaxVolatility.facility_contribution, 0.01);
+  html += checkField("allowStocksInReserve","Allow individual stocks in the Operating Reserve (off by default — see Final_Algorithm.md Part 6)", s.allowStocksInReserve);
+  html += '<div class="section-title">Portfolio fit</div>';
+  html += settingNum("maxSectorWeight","Max sector weight among held positions", s.maxSectorWeight, 0.01);
+  html += settingNum("maxSharedThesisHoldings","Max held positions sharing one thesis tag", s.maxSharedThesisHoldings, 1);
+  html += '<div class="section-title">Graveyard</div>';
+  html += settingNum("graveyardRepeatThreshold","Repeat count that flags a pattern", s.graveyardRepeatThreshold, 1);
+  html += '<div class="section-title">Target holdings (for the bucket-progress visual only)</div>';
+  html += settingNum("targetHoldings.growth_engine","Growth Engine target", s.targetHoldings.growth_engine, 1);
+  html += settingNum("targetHoldings.facility_contribution","Facility Contribution target", s.targetHoldings.facility_contribution, 1);
+  html += '</div>';
+  html += '<div class="card" style="margin-top:12px;"><h3 id="previewCount">No changes yet</h3>';
+  html += '<div class="field"><label>Reason for this change (required to save)</label><textarea id="changeReason" placeholder="What changed, and why — for the record."></textarea></div>';
+  html += '<button class="btn btn-primary" id="saveSettingsBtn" disabled>Save settings</button></div>';
+  if((s.changeLog||[]).length){
+    html += '<div class="section-title">Change log</div><div class="card">';
+    s.changeLog.slice().reverse().forEach(function(e){
+      html += '<div class="scorerow"><span>'+esc(new Date(e.at).toLocaleString())+' — '+esc(whoName(e.by))+'</span></div><p class="small" style="margin:-4px 0 8px;">'+esc(e.reason)+'</p>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+function settingNum(path, label, val, step){
+  return '<div class="field"><label>'+esc(label)+'</label><input type="number" step="'+step+'" data-setting="'+path+'" value="'+val+'"></div>';
+}
+function readSettingsForm(){
+  var s = JSON.parse(JSON.stringify(state.settings));
+  document.querySelectorAll("[data-setting]").forEach(function(el){
+    var path = el.getAttribute("data-setting").split(".");
+    var v = parseFloat(el.value);
+    if(path.length===1) s[path[0]]=v; else s[path[0]][path[1]]=v;
+  });
+  var allow = document.getElementById("f_allowStocksInReserve");
+  if(allow) s.allowStocksInReserve = allow.checked;
+  return s;
+}
+function settingsDiffCount(newS){
+  var open = state.cases.filter(function(c){return c.status==="open";});
+  var changed = 0;
+  open.forEach(function(c){
+    var before = computeCase(c, state.settings, state.cases, c.id).verdict;
+    var after = computeCase(c, newS, state.cases, c.id).verdict;
+    if(before!==after) changed++;
+  });
+  return changed;
+}
+function updateSettingsPreview(){
+  var newS = readSettingsForm();
+  var n = settingsDiffCount(newS);
+  var el = document.getElementById("previewCount");
+  if(el) el.textContent = n===0 ? "No verdicts would change" : (n+" verdict"+(n===1?"":"s")+" would flip if you save this");
+  var reason = document.getElementById("changeReason");
+  var btn = document.getElementById("saveSettingsBtn");
+  if(btn) btn.disabled = !(reason && reason.value.trim().length>0);
+  return newS;
+}
+
+// ---------- plan (deadlines & pace) ----------
+function planNum(path, label, val, step){
+  return '<div class="field"><label>'+esc(label)+'</label><input type="number" step="'+step+'" data-plansetting="'+path+'" value="'+val+'"></div>';
+}
+function ladderRungCount(p){ return p.reserveEndYear - p.reserveStartYear + 1; }
+function readPlanForm(){
+  var p = JSON.parse(JSON.stringify(state.plan));
+  document.querySelectorAll("[data-plansetting]").forEach(function(el){
+    var path = el.getAttribute("data-plansetting");
+    var v = parseFloat(el.value);
+    if(!isNaN(v)) p[path]=v;
+  });
+  var note = document.getElementById("confidenceNote");
+  if(note) p.confidenceNote = note.value;
+  var n = ladderRungCount(p);
+  var curve = [];
+  for(var k=0;k<n;k++){
+    var el = document.querySelector('[data-ladderrate="'+k+'"]');
+    var v2 = el ? parseFloat(el.value) : NaN;
+    curve.push(isNaN(v2) ? null : v2);
+  }
+  p.reserveYieldCurve = curve;
+  return p;
+}
+function planChangedCount(newP){
+  var keys = ["contribution2027","contributionYear1","contribution2028","contributionYear2","reserveStartYear","reserveEndYear","annualPayment","rangeCheckpointYear","growthTargetReturn","growthReturnLow","growthReturnHigh","growthReturnVolatility","reserveSafeReturn"];
+  var n=0;
+  keys.forEach(function(k){ if(state.plan[k] !== newP[k]) n++; });
+  if(JSON.stringify(state.plan.reserveYieldCurve||[]) !== JSON.stringify(newP.reserveYieldCurve||[])) n++;
+  return n;
+}
+function planPreviewHtml(p){
+  var r = computePlan(p);
+  var html = '';
+  html += '<div class="card" style="margin-top:12px;">';
+  html += '<div class="section-title">What this plan projects</div>';
+  html += '<div class="scorerow"><span>Reserve needed at start of '+p.reserveStartYear+' (to fund '+ (p.reserveEndYear-p.reserveStartYear+1) +' payments of '+fmtMoney(p.annualPayment)+'/yr at a '+(p.reserveSafeReturn*100).toFixed(1)+'% safe rate)</span><strong>'+fmtMoney(r.reserveNeeded)+'</strong></div>';
+  html += '<div class="scorerow"><span>Projected Growth Engine balance by '+p.reserveStartYear+' (at a '+(p.growthTargetReturn*100).toFixed(1)+'% assumed return)</span><strong>'+fmtMoney(r.balanceAt2033)+'</strong></div>';
+  var badgeClass = r.onPaceFor2033 ? "buy" : "reject";
+  var badgeText = r.onPaceFor2033 ? "ON PACE" : "SHORT OF TARGET";
+  html += '<div class="scorerow"><span>Status</span><span class="daub '+badgeClass+'">'+badgeText+'</span></div>';
+  if(!r.onPaceFor2033){
+    html += '<p class="small">At this assumed return, the plan falls short of the reserve requirement by '+fmtMoney(r.reserveNeeded-r.balanceAt2033)+'. That means either the assumed return, the contribution amounts, or the reserve safe rate need to change — or the Facility Contribution will be $0 and the Reserve itself may run short.</p>';
+  }
+  if(r.ranOutYear){
+    html += '<p class="small" style="color:var(--bad);">Year-by-year simulation: at these assumptions, the Operating Reserve runs out of money in <strong>'+r.ranOutYear+'</strong>, before the last payment in '+p.reserveEndYear+'.</p>';
+  } else {
+    html += '<p class="small" style="color:var(--ok);">Year-by-year simulation: the Operating Reserve covers all ten payments through '+p.reserveEndYear+' at these assumptions.</p>';
+  }
+  html += '<div class="scorerow"><span>Facility Contribution (Growth Engine balance left over after the Reserve is fully funded)</span><strong>'+fmtMoney(r.facilityAmount)+'</strong></div>';
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:12px;">';
+  html += '<div class="section-title">Reserve ladder (liability matching)</div>';
+  html += '<p class="small">Instead of one blended discount rate, each payment year gets its own "rung" — the cost today of an asset (e.g. a zero-coupon Treasury) that matures exactly when that payment is due. Every rung defaults to the flat safe-rate assumption above; edit a rate in the Reserve settings section if your team has researched a real maturity-matched yield for that year.</p>';
+  html += '<div style="max-height:220px;overflow:auto;">';
+  r.ladder.rungs.forEach(function(rung){
+    html += '<div class="scorerow"><span>Matures '+rung.year+' ('+(rung.rate*100).toFixed(2)+'%'+(rung.overridden?" — team override":"")+')</span><strong>'+fmtMoney(rung.cost)+'</strong></div>';
+  });
+  html += '</div>';
+  html += '<div class="scorerow"><span><b>Total (matches Reserve needed above)</b></span><strong>'+fmtMoney(r.ladder.total)+'</strong></div>';
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:12px;">';
+  html += '<div class="section-title">Monte Carlo funding probability</div>';
+  html += '<p class="small">'+r.monteCarlo.trials.toLocaleString()+' simulated scenarios of annual market returns between now and '+p.reserveStartYear+', each drawn from a '+(p.growthTargetReturn*100).toFixed(1)+'% average return with '+(p.growthReturnVolatility*100).toFixed(1)+'% annual volatility (a [TEAM DECISION] assumption — a commonly cited rough approximation for U.S. equities; research and adjust it). Seeded so the same assumptions always reproduce the same result.</p>';
+  html += '<div class="scorerow"><span>Probability the Growth Engine reaches the '+fmtMoney(r.reserveNeeded)+' reserve requirement by '+p.reserveStartYear+'</span><strong>'+(r.monteCarlo.probability*100).toFixed(1)+'%</strong></div>';
+  html += '<div class="scorerow"><span>10th percentile outcome (bad-market scenario) — Facility Contribution</span><strong>'+fmtMoney(r.mcFacilityP10)+'</strong></div>';
+  html += '<div class="scorerow"><span>50th percentile outcome (median) — Facility Contribution</span><strong>'+fmtMoney(r.mcFacilityP50)+'</strong></div>';
+  html += '<div class="scorerow"><span>90th percentile outcome (strong-market scenario) — Facility Contribution</span><strong>'+fmtMoney(r.mcFacilityP90)+'</strong></div>';
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:12px;">';
+  html += '<div class="section-title">Credible range for the '+p.rangeCheckpointYear+' checkpoint</div>';
+  html += '<p class="small">The case requires giving co-sponsors a dollar range with a stated confidence level by '+p.rangeCheckpointYear+'. The Monte Carlo 10th–90th percentile range above is a real statistical range (an 80% confidence band, by construction) — state that directly. The low/high scenario bookends below are a simpler back-of-envelope cross-check, not a statistical claim; add any further reasoning in the field below.</p>';
+  html += '<div class="scorerow"><span>Low scenario ('+(p.growthReturnLow*100).toFixed(1)+'% return) — projected Facility Contribution</span><strong>'+fmtMoney(r.facilityLow)+'</strong></div>';
+  html += '<div class="scorerow"><span>High scenario ('+(p.growthReturnHigh*100).toFixed(1)+'% return) — projected Facility Contribution</span><strong>'+fmtMoney(r.facilityHigh)+'</strong></div>';
+  html += '<div class="scorerow"><span>Growth Engine balance at checkpoint year '+p.rangeCheckpointYear+' (target-rate assumption)</span><strong>'+fmtMoney(r.balAt2031Target)+'</strong></div>';
+  html += '</div>';
+
+  html += '<div class="card" style="margin-top:12px;">';
+  html += '<div class="section-title">Year-by-year timeline</div>';
+  html += '<div style="max-height:280px;overflow:auto;">';
+  r.years.forEach(function(y){
+    if(y.phase==="growth"){
+      html += '<div class="scorerow"><span>'+y.year+' — Growth Engine (accumulating)</span><strong>'+fmtMoney(y.balance)+'</strong></div>';
+    } else {
+      var covClass = y.covered ? "ok" : "bad";
+      html += '<div class="scorerow"><span>'+y.year+' — Reserve pays out '+fmtMoney(p.annualPayment)+'</span><strong style="color:var(--'+covClass+');">'+fmtMoney(y.balanceBeforeGrowth)+(y.covered?"":" (short)")+'</strong></div>';
+    }
+  });
+  html += '</div></div>';
+  return html;
+}
+function planHtml(){
+  var p = state.plan;
+  var html = '<div class="card">';
+  html += '<div class="section-title">Contributions (from the case study)</div>';
+  html += planNum("contribution2027","2027 contribution ($)", p.contribution2027, 1000);
+  html += planNum("contributionYear1","2027 contribution year", p.contributionYear1, 1);
+  html += planNum("contribution2028","2028 contribution ($)", p.contribution2028, 1000);
+  html += planNum("contributionYear2","2028 contribution year", p.contributionYear2, 1);
+  html += '<div class="section-title">Operating Reserve (2033–2042 payments)</div>';
+  html += planNum("reserveStartYear","First payment year", p.reserveStartYear, 1);
+  html += planNum("reserveEndYear","Last payment year", p.reserveEndYear, 1);
+  html += planNum("annualPayment","Annual payment ($)", p.annualPayment, 1000);
+  html += planNum("rangeCheckpointYear","Year the credible range is due to co-sponsors", p.rangeCheckpointYear, 1);
+  html += '<div class="section-title">[TEAM DECISION] Return assumptions</div>';
+  html += '<p class="small">These are not guarantees — they\'re the team\'s stated assumptions, used only to project whether the plan is on pace. Change them and the projections below update immediately.</p>';
+  if(p.growthTargetReturn >= 0.15){
+    html += '<p class="small" style="color:var(--bad);">Heads up: a '+(p.growthTargetReturn*100).toFixed(1)+'% annual return is well above the long-run historical average for equity markets (roughly 7-10%/year). If judges ask about this, be ready to explain why the team\'s strategy is expected to outperform that historical average, and what happens to the plan if it doesn\'t.</p>';
+  }
+  html += planNum("growthTargetReturn","Growth Engine — target annual return (e.g. 0.175 = 17.5%)", p.growthTargetReturn, 0.005);
+  html += planNum("growthReturnLow","Growth Engine — low scenario return", p.growthReturnLow, 0.005);
+  html += planNum("growthReturnHigh","Growth Engine — high scenario return", p.growthReturnHigh, 0.005);
+  html += planNum("growthReturnVolatility","Growth Engine — assumed annual volatility (for the Monte Carlo simulation below)", p.growthReturnVolatility, 0.005);
+  html += planNum("reserveSafeReturn","Operating Reserve — safe/conservative return (kept separate and lower, per teacher feedback on rate risk)", p.reserveSafeReturn, 0.005);
+  html += '<div class="field"><label>Confidence-level reasoning (for the '+p.rangeCheckpointYear+' checkpoint — your own words, not a fabricated statistic)</label><textarea id="confidenceNote" placeholder="e.g. We are stating this as a range rather than a single number because...">'+esc(p.confidenceNote||"")+'</textarea></div>';
+  html += '</div>';
+  html += '<div class="card">';
+  html += '<div class="section-title">[TEAM DECISION] Reserve ladder — per-year rate overrides (optional)</div>';
+  html += '<p class="small">Leave every rate equal to the safe-rate assumption above unless your team has researched a real maturity-matched Treasury yield for a specific year.</p>';
+  var n = ladderRungCount(p);
+  var curve = p.reserveYieldCurve || [];
+  for(var k=0;k<n;k++){
+    var year = p.reserveStartYear + k;
+    var val = (curve[k]!==undefined && curve[k]!==null) ? curve[k] : p.reserveSafeReturn;
+    html += '<div class="field"><label>Rate assumed for the '+year+' payment</label><input type="number" step="0.001" data-ladderrate="'+k+'" value="'+val+'"></div>';
+  }
+  html += '<button type="button" class="btn" id="resetLadderBtn">Reset all rungs to the flat safe rate</button>';
+  html += '</div>';
+  html += '<div id="planPreview">'+planPreviewHtml(p)+'</div>';
+  html += '<div class="card" style="margin-top:12px;"><h3 id="planPreviewCount">No changes yet</h3>';
+  html += '<div class="field"><label>Reason for this change (required to save)</label><textarea id="planChangeReason" placeholder="What changed, and why — for the record."></textarea></div>';
+  html += '<button class="btn btn-primary" id="savePlanBtn" disabled>Save plan</button></div>';
+  if((p.changeLog||[]).length){
+    html += '<div class="section-title">Change log</div><div class="card">';
+    p.changeLog.slice().reverse().forEach(function(e){
+      html += '<div class="scorerow"><span>'+esc(new Date(e.at).toLocaleString())+' — '+esc(whoName(e.by))+'</span></div><p class="small" style="margin:-4px 0 8px;">'+esc(e.reason)+'</p>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+function updatePlanPreview(){
+  var newP = readPlanForm();
+  var preview = document.getElementById("planPreview");
+  if(preview) preview.innerHTML = planPreviewHtml(newP);
+  var n = planChangedCount(newP);
+  var el = document.getElementById("planPreviewCount");
+  if(el) el.textContent = n===0 ? "No changes yet" : (n+" assumption"+(n===1?"":"s")+" changed — save to record it");
+  var reason = document.getElementById("planChangeReason");
+  var btn = document.getElementById("savePlanBtn");
+  if(btn) btn.disabled = !(reason && reason.value.trim().length>0);
+  return newP;
+}
+
+// ---------- wiring ----------
+function wire(){
+  document.querySelectorAll("[data-nav]").forEach(function(el){
+    el.addEventListener("click", function(){ go(el.getAttribute("data-nav"), {editCaseId:null}); });
+  });
+  document.querySelectorAll("[data-open]").forEach(function(el){
+    el.addEventListener("click", function(e){
+      if(e.target.closest("[data-reopen]")) return;
+      go("detail", {currentCaseId: el.getAttribute("data-open")});
+    });
+  });
+  document.querySelectorAll("[data-filter]").forEach(function(el){
+    el.addEventListener("change", function(){ listFilters[el.getAttribute("data-filter")] = el.value; render(); });
+  });
+  var edit = document.querySelector("[data-edit]");
+  if(edit){ edit.addEventListener("click", function(){ go("new", {editCaseId: edit.getAttribute("data-edit")}); }); }
+  var del = document.querySelector("[data-delete]");
+  if(del){ del.addEventListener("click", function(){
+    var id = del.getAttribute("data-delete");
+    var c = state.cases.find(function(x){return x.id===id;});
+    if(confirm("Permanently delete the case file for "+(c?c.company:"this company")+"? This cannot be undone.")){
+      deleteCase(id).then(function(){ go("list"); });
+    }
+  }); }
+  var cold = document.querySelector("[data-coldcase]");
+  if(cold){ cold.addEventListener("click", function(){
+    var cond = prompt("What specific condition would make you reconsider this stock?");
+    if(cond && cond.trim()){ updateCase(cold.getAttribute("data-coldcase"), {status:"coldcase", reopenCondition:cond.trim()}).then(function(){ go("coldcases"); }); }
+  }); }
+  var gy = document.querySelector("[data-graveyard]");
+  if(gy){ gy.addEventListener("click", function(){
+    var whatHappened = prompt("What actually happened?");
+    if(whatHappened===null) return;
+    var reasonKeys = Object.keys(FAILURE_REASONS);
+    var promptText = "Why did the thesis fail? Enter a number:\\n"+reasonKeys.map(function(k,i){return (i+1)+". "+FAILURE_REASONS[k];}).join("\\n");
+    var pick = prompt(promptText);
+    var idx = parseInt(pick,10)-1;
+    var reasonKey = reasonKeys[idx] || "other_reason_not_listed";
+    updateCase(gy.getAttribute("data-graveyard"), {status:"graveyard", graveyard:{whatHappened:whatHappened, failureReason:reasonKey}}).then(function(){ go("graveyard"); });
+  }); }
+  document.querySelectorAll("[data-reopen]").forEach(function(el){
+    el.addEventListener("click", function(e){
+      e.stopPropagation();
+      var note = prompt("What evidence changed? (required)");
+      if(note && note.trim()){
+        var id = el.getAttribute("data-reopen");
+        var c = state.cases.find(function(x){return x.id===id;});
+        var hist = (c && c.coldCaseHistory)||[];
+        hist.push({reopenedAt:new Date().toISOString(), note:note.trim()});
+        updateCase(id, {status:"open", coldCaseHistory:hist});
+      }
+    });
+  });
+
+  if(state.view==="new"){
+    var form = document.getElementById("caseform");
+    if(form){
+      form.addEventListener("input", function(){ renderScorePanel(state.editCaseId); });
+      renderScorePanel(state.editCaseId);
+    }
+    var saveBtn = document.getElementById("saveCaseBtn");
+    if(saveBtn){
+      saveBtn.addEventListener("click", function(){
+        var data = readForm();
+        if(!data.company.trim()){ alert("Give the company a name first."); return; }
+        if(state.editCaseId){ updateCase(state.editCaseId, data).then(function(){ go("detail", {currentCaseId:state.editCaseId, editCaseId:null}); }); }
+        else { addCase(data).then(function(){ go("list"); }); }
+      });
+    }
+  }
+  if(state.view==="settings"){
+    document.querySelectorAll("[data-setting]").forEach(function(el){ el.addEventListener("input", updateSettingsPreview); });
+    var allow = document.getElementById("f_allowStocksInReserve");
+    if(allow) allow.addEventListener("change", updateSettingsPreview);
+    var reason = document.getElementById("changeReason");
+    if(reason) reason.addEventListener("input", updateSettingsPreview);
+    var save = document.getElementById("saveSettingsBtn");
+    if(save) save.addEventListener("click", function(){
+      var newS = readSettingsForm();
+      var r = document.getElementById("changeReason").value.trim();
+      if(!r) return;
+      saveSettings(newS, r).then(function(){ render(); });
+    });
+  }
+  if(state.view==="plan"){
+    document.querySelectorAll("[data-plansetting]").forEach(function(el){ el.addEventListener("input", updatePlanPreview); });
+    document.querySelectorAll("[data-ladderrate]").forEach(function(el){ el.addEventListener("input", updatePlanPreview); });
+    var pnote = document.getElementById("confidenceNote");
+    if(pnote) pnote.addEventListener("input", updatePlanPreview);
+    var preason = document.getElementById("planChangeReason");
+    if(preason) preason.addEventListener("input", updatePlanPreview);
+    var reset = document.getElementById("resetLadderBtn");
+    if(reset) reset.addEventListener("click", function(){
+      var safe = document.querySelector('[data-plansetting="reserveSafeReturn"]');
+      var safeVal = safe ? safe.value : state.plan.reserveSafeReturn;
+      document.querySelectorAll("[data-ladderrate]").forEach(function(el){ el.value = safeVal; });
+      updatePlanPreview();
+    });
+    var psave = document.getElementById("savePlanBtn");
+    if(psave) psave.addEventListener("click", function(){
+      var newP = readPlanForm();
+      var r = document.getElementById("planChangeReason").value.trim();
+      if(!r) return;
+      savePlan(newP, r).then(function(){ render(); });
+    });
+  }
+}
+
+boot();
+})();
+</script>
+</body>
+</html>
